@@ -73,7 +73,7 @@ public:
         del_node(temp);
     }
 
-    void push_back(_ValueType v){
+    void push_back(const _ValueType& v){
         _Nodeptr p = buy_node();
         _Acc::_next(_Cur) = p;
         _Acc::_val(p) = v;

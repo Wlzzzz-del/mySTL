@@ -1,3 +1,4 @@
+// 作者给出的简单版空间配置器,接口不整齐，不适用于SGI的vector等容器
 #ifndef _JJALLOCATOR_
 #define _JJALLOCATOR_
 
@@ -81,6 +82,7 @@ namespace JJ{
         pointer allocate(size_type n, const void* hint = 0)
         {
             // 这边 hint 不懂的什么意思
+            // hint 是指针
             // 该函数申请配置连续空间
             return _allocate((difference_type)n, (pointer)0);
         }
