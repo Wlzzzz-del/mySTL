@@ -2,6 +2,7 @@
 #ifndef _JJALLOCATOR_
 #define _JJALLOCATOR_
 
+
 #include <new>// for placement new
 /*
 new 头文件是动态内存管理库的一部分
