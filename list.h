@@ -26,6 +26,34 @@ namespace mylist{
         typedef const _Ty& const_reference_type;
         typedef int        difference_type;
 
+        public:
+        struct iterator{
+            private:
+            _Nodeptr _ptr;
+            public:
+            iterator operator++(){}
+            iterator operator++(int){}
+            iterator operator--(){}
+            iterator operator--(int){}
+            bool operator==(iterator ite){}
+            bool operator!=(iterator ite){}
+            _Ty operator*(iterator ite){}
+        };
+
+        struct const_iterator{
+            private:
+            _Nodeptr _ptr;
+            public:
+            const_iterator operator++(){}
+            const_iterator operator++(int){}
+            const_iterator operator--(){}
+            const_iterator operator--(int){}
+            bool operator==(const_iterator ite){}
+            bool operator!=(const_iterator ite){}
+            _Ty operator*(const_iterator ite){}
+        };
+
+
         struct _Acc{
             typedef _Nodeptr& _ref_Nodeptr;
             typedef _Ty& _ref_Val;
