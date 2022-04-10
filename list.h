@@ -31,13 +31,37 @@ namespace mylist{
             private:
             _Nodeptr _ptr;
             public:
-            iterator operator++(){}
-            iterator operator++(int){}
-            iterator operator--(){}
-            iterator operator--(int){}
-            bool operator==(iterator ite){}
-            bool operator!=(iterator ite){}
-            _Ty operator*(iterator ite){}
+            // 无参数构造函数
+            iterator();
+            // 带参数构造函数
+            iterator(_Nodeptr P):_ptr(P){}
+            iterator operator++(){
+                this->_ptr = (_Nodeptr)_Acc::Next(this->_ptr);
+                return *this;
+            }
+            iterator operator++(int){
+                iterator tmp = *this;
+                ++*this;
+                return tmp;
+            }
+            iterator operator--(){
+                this->_ptr = (_Nodeptr)_Acc::Prev(this->_ptr);
+                return *this;
+            }
+            iterator operator--(int){
+                iterator tmp = this->_ptr;
+                --*this;
+                return tmp;
+            }
+            bool operator==(iterator ite){
+                return ite._ptr==this->_ptr;
+            }
+            bool operator!=(iterator ite){
+                return !(ite==*this);
+            }
+            value_type& operator*(){
+                return _Acc::Value(this->_ptr);
+            }
         };
 
         struct const_iterator{
@@ -48,9 +72,9 @@ namespace mylist{
             const_iterator operator++(int){}
             const_iterator operator--(){}
             const_iterator operator--(int){}
-            bool operator==(const_iterator ite){}
-            bool operator!=(const_iterator ite){}
-            _Ty operator*(const_iterator ite){}
+            //bool operator==(const_iterator ite){}
+            //bool operator!=(const_iterator ite){}
+            value_type operator*(const_iterator ite){}
         };
 
 
@@ -136,6 +160,17 @@ namespace mylist{
 
         size_type size(){return _Size;}
 
+        iterator begin(){
+            return iterator(_Acc::Next(_Head));
+        }
+
+        iterator end(){
+            return iterator(_Head);
+        }
+
+        const_iterator cbegin(){}
+
+        const_iterator cend(){}
 
 
     };
