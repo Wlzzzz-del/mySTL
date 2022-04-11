@@ -53,10 +53,10 @@ namespace mylist{
                 --*this;
                 return tmp;
             }
-            bool operator==(iterator ite){
+            const bool operator==(iterator ite){
                 return ite._ptr==this->_ptr;
             }
-            bool operator!=(iterator ite){
+            const bool operator!=(iterator ite){
                 return !(ite==*this);
             }
             value_type& operator*(){
@@ -68,13 +68,35 @@ namespace mylist{
             private:
             _Nodeptr _ptr;
             public:
-            const_iterator operator++(){}
-            const_iterator operator++(int){}
-            const_iterator operator--(){}
-            const_iterator operator--(int){}
-            //bool operator==(const_iterator ite){}
-            //bool operator!=(const_iterator ite){}
-            value_type operator*(const_iterator ite){}
+            const_iterator(){}
+            const_iterator(_Nodeptr _N):_ptr(_N){}
+            const_iterator operator++(){
+                this->_ptr= _Acc::Next(this->_ptr);
+                return *this;
+            }
+            const_iterator operator++(int){
+                const_iterator _temp = *this;
+                this->_ptr = _Acc::Next(this->_ptr);
+                return _temp;
+            }
+            const_iterator operator--(){
+                this->_ptr = _Acc::Prev(this->_ptr);
+                return *this;
+            }
+            const_iterator operator--(int){
+                const_iterator _temp = *this;
+                this->_ptr = _Acc::Prev(this->_ptr);
+                return _temp;
+            }
+            const bool operator==(const_iterator ite){
+                return ite._ptr == this->_ptr;
+            }
+            const bool operator!=(const_iterator ite){
+                return !(ite==*this);
+            }
+            const value_type& operator*(){
+                return _Acc::Value(this->_ptr);
+            }
         };
 
 
@@ -168,9 +190,13 @@ namespace mylist{
             return iterator(_Head);
         }
 
-        const_iterator cbegin(){}
+        const_iterator cbegin(){
+            return const_iterator(_Acc::Next(_Head));
+        }
 
-        const_iterator cend(){}
+        const_iterator cend(){
+            return const_iterator(_Head);
+        }
 
 
     };
