@@ -132,7 +132,7 @@ namespace mylist{
             // malloc申请空间
             _Nodeptr _temp= (_Nodeptr)malloc(sizeof(_Nodeptr));
             assert(_temp!=NULL);
-            
+
             _Acc::Next(_temp) = _Narg? _Narg:_temp;
             _Acc::Prev(_temp) = _Parg? _Parg:_temp;
             return _temp;
@@ -140,6 +140,18 @@ namespace mylist{
 
         public:
         explicit List():_Head(_buynode()),_Size(0){}
+        // 析构
+
+        ~List(){
+            // 析构函数一直出错
+            _Nodeptr temp = _Acc::Next(_Head);
+            while(temp != _Head){
+                _Nodeptr _d = temp;
+                temp = _Acc::Next(temp);
+                //del_node(_d);
+            }
+            //del_node(_Head);
+        }
 
         // 尾插
         void push_back(const value_type& val){
