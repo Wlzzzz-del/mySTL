@@ -4,7 +4,6 @@
 template <class T>
 class List{
     private:
-
     struct Node{
         Node* _prev;
         Node* _next;
@@ -116,7 +115,7 @@ class List{
         Head = buy_mem();
         ACC::_Next(Head)=Head;
         ACC::_Prev(Head)=Head;
-        ACC::_Val(Head)=NULL;
+        ACC::_Val(Head)=0;
     }
     ~List(){
         clear();
@@ -174,6 +173,43 @@ C++ 禁止从外部类访问内部类的私有成员
         ++Length;
     }
 
+    // 头插法
+    void push_front(value_type v){
+        Nodeptr tmp = buy_mem();
+        ACC::_Val(tmp) = v;
+        Nodeptr mid = ACC::_Next(Head);
+        ACC::_Next(Head) = tmp;
+        ACC::_Prev(tmp) = Head;
+        ACC::_Next(tmp) = mid;
+        ACC::_Prev(mid) = tmp;
+        ++Length;
+        return ;
+    }
+
+    // 头删法
+    void pop_front(){
+        Nodeptr tmp = ACC::_Next(Head);
+        if(tmp == Head)return;
+        Nodeptr mid = ACC::_Next(tmp);
+        ACC::_Prev(mid) = Head;
+        ACC::_Next(Head) = mid;
+        --Length;
+        alloc.deallocate(tmp,1);
+        return;
+    }
+
+    // 尾删法
+    void pop_back(){
+        Nodeptr tmp = ACC::_Prev(Head);
+        if(tmp == Head)return;
+        Nodeptr mid = ACC::_Prev(tmp);
+        ACC::_Next(mid) = Head;
+        ACC::_Prev(Head) = mid;
+        --Length;
+        alloc.deallocate(tmp,1);
+        return;
+    }
+
     void erase(iterator _pos){
         Nodeptr frt = ACC::_Prev(_pos._ptr);
         Nodeptr aft = ACC::_Next(_pos._ptr);
@@ -210,6 +246,16 @@ C++ 禁止从外部类访问内部类的私有成员
     }
     bool empty(){
         return (Length==0);
+    }
+
+    reference operator[](int x){
+        if((sizetype)x>Length)exit(1);
+        Nodeptr temp = ACC::_Next(Head);
+        while(x>0){
+            temp = ACC::_Next(temp);
+            --x;
+        }
+        return (reference)ACC::_Val(temp);
     }
 
     private:
