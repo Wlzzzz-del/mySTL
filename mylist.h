@@ -19,10 +19,11 @@ class List{
     typedef T value_type;
     typedef Node* Nodeptr;
     typedef const Node* cNodeptr;
+    // 指定内存配置器
+    typedef aloc::allocator<Node> allocator;
 
     Nodeptr Head;
     sizetype Length=0; 
-    aloc::allocator<Node> alloc;// 内存配置器
 
     struct ACC{
         typedef Nodeptr& ref_Nodeptr;
@@ -194,7 +195,7 @@ C++ 禁止从外部类访问内部类的私有成员
         ACC::_Prev(mid) = Head;
         ACC::_Next(Head) = mid;
         --Length;
-        alloc.deallocate(tmp,1);
+        allocator::deallocate(tmp,1);
         return;
     }
 
@@ -206,7 +207,7 @@ C++ 禁止从外部类访问内部类的私有成员
         ACC::_Next(mid) = Head;
         ACC::_Prev(Head) = mid;
         --Length;
-        alloc.deallocate(tmp,1);
+        allocator::deallocate(tmp,1);
         return;
     }
 
@@ -215,7 +216,7 @@ C++ 禁止从外部类访问内部类的私有成员
         Nodeptr aft = ACC::_Next(_pos._ptr);
         ACC::_Next(frt) = aft;
         ACC::_Prev(aft) = frt;
-        alloc.deallocate(_pos._ptr,1); 
+        allocator::deallocate(_pos._ptr,1);
         --Length;
     }
 
@@ -261,12 +262,12 @@ C++ 禁止从外部类访问内部类的私有成员
     private:
     Nodeptr buy_mem(){
         Nodeptr temp;
-        temp = alloc.allocate(1);
+        temp = allocator::allocate(1);
         return temp;
     }
 
     void del_mem(Nodeptr _p){
-        alloc.deallocate(_p,1);
+        allocator::deallocate(_p,1);
     }
      
 };
