@@ -61,7 +61,6 @@ deque_iterator<T, buf_size>::operator--(int){
 }
 
 
-// 待验证
 // 少考虑了offset小于0的情况
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::self&
@@ -109,7 +108,7 @@ template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::different_type
 deque_iterator<T, buf_size>::operator-(const self x)const{
     return different_type(buffer_size()*(buf-x.buf-1)+(cur-first)
-    +(x.last-x.cur));
+    +(x.last-x.cur));// 这边计算地址差
 }
 
 template <class T, size_t buf_size>
@@ -146,33 +145,144 @@ deque<T,buf_size>::create_mapnode(){
 }
 */
 
+// buffer-center的最低节点数
 template <class T, size_t buf_size>
 typename deque<T, buf_size>::size_type 
 deque<T,buf_size>::initial_map_size(){
     // 一个buffer-center至少包含八个节点
     return size_type(8);
 }
+template <class T, size_t buf_size>void
+deque<T, buf_size>::uninitialized_fill(pointer _begin,pointer _end,const value_type val){
+    // [_begin, _end)
+    pointer cur;
+    for(cur = _begin; cur<_end; ++cur){
+        construct(cur, val);
+    }
+}
 
-template <class T, size_t buf_size>
-deque<T,buf_size>::deque(size_type n, value_type val){
-    // 需要一个确定mapsize 的方法
-    // 需要节点数 = (num of element)/每个缓冲区可容纳的元素个数+1
+template <class T, size_t buf_size>void 
+deque<T, buf_size>::fill_initialized(size_type n,const value_type val){
+   create_mapnode(n);
+   map_pointer tmp;
+   for(tmp= start.buf; tmp<finish.buf; ++tmp){
+    uninitialized_fill(*tmp,*tmp+buffer_size(), val);
+   }
+   uninitialized_fill(finish.first, finish.cur, val);
+}
+
+template <class T, size_t buf_size> void 
+deque<T ,buf_size>::create_mapnode(size_type n){
+    // 负责产生并安排deque结构
     size_type num_of_node = (n/buffer_size())+1;
     // 一个map需要管理几个节点，前后各需要预留一个，故(num_of_node+2)
     // 至少需要8个
     map_size = max(initial_map_size(),num_of_node+2);
+    // 分配mapcenter
     map = buffer_allocator::allocate(map_size);
-    map_pointer cur;
-    for(cur = map; cur<map+map_size; ++cur){
-        *map = allocator::allocate(buffer_size());
+    map_pointer nstart,nfinish,cur;
+    // mapcenter不直接为所有buffer分配内存，而是先分配需要初始化的部分
+    // nstart 挑选在buffercenter中最中间的位置，前后都预留了可以扩充的余地
+    nstart = map+ (map_size-num_of_node)/2;
+    nfinish = nstart + num_of_node - 1;
+
+    for(cur = nstart; cur<=nfinish; ++cur){
+        *cur = allocator::allocate(buffer_size());
     }
-    int num=0;// 记录初始化的元素个数
-    for(cur = map+1; cur<map+map_size-1; ++cur){
-        // 因为前后各预留了一个缓冲区,所以注意区间范围
-        for(pointer bcur = *cur; bcur<buffer_size()+*cur&&num<n; ++bcur){
-            construct(bcur, val);
-            ++num;
-        }
-    }
-    // 还需要一步更新start和finish
+    // 更新deque的start和finish
+    start.set_new_node(nstart);
+    finish.set_new_node(nfinish);
+    finish.cur = finish.first+(n%buffer_size());
 }
+
+// deque构造函数
+template <class T, size_t buf_size>
+deque<T,buf_size>::deque(size_type n, value_type val):map(0),map_size(0),start(),finish(){
+    fill_initialized(n,val);
+}
+
+// deque析构函数
+template <class T, size_t buf_size>
+deque<T,buf_size>::~deque(){
+    map_pointer tmp = map;
+    for(;tmp<map+map_size;++tmp){
+        // 先对每个对象析构
+        for(pointer bfcur = *tmp;bfcur<bfcur+buffer_size(); ++bfcur){
+            destroy(bfcur);
+        }
+        // 再释放对象数组的内存
+        allocator::deallocate(*tmp);
+    }
+    // 释放mapcenter
+    buffer_allocator::deallocate(map);
+}
+
+
+// 元素的构造
+template <class T, size_t buf_size>
+void deque<T, buf_size>::construct(pointer p,const value_type val){
+    if(is_trivial<T>()){
+        *p = val;
+    }
+    else{
+        new(p) (T)(val);
+    }
+}
+
+// 元素的析构
+template <class T, size_t buf_size>
+void deque<T, buf_size>::destroy(pointer p){
+    if(is_trivial<T>())return;
+    else p->~T();
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::push_back_aux(value_type val){
+    // 如果buffer空间不够还需补写一个函数
+    // reverse_map_at_back()
+    construct(finish.cur, val);
+    *(finish.buf+1)=allocator::allocate(buffer_size());
+    finish.set_new_node(finish.buf+1);
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::push_back(value_type val){
+    /* 有几种情况:
+    如果当前buffer还有空间能够插入，则直接插入
+    如果当前buffer没有空间能够插入, 调用辅助函数aux:
+    如果当前buffer不是最后一个buffer，则插入到下一个buffer中
+    如果当前buffer是最后一个buffer，则引起deque重新配置空间并插入
+    */
+   if(finish.cur+1 ==finish.last)push_back_aux(val);
+   else{
+    construct(finish.cur,val);
+    ++finish.cur;
+   }
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::push_front_aux(value_type val){
+    construct(start.first,val);
+    *(start.buf-1) = allocator::allocate(buffer_size());
+    start.set_new_node(start.buf-1);
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::push_front(value_type val){
+    if(start.cur-1 == start.first)push_front_aux(val);
+    else{
+        --start.cur;
+        construct(start.cur,val);
+    }
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::pop_back(value_type val){
+
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::pop_front(value_type val){
+
+}
+

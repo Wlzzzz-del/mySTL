@@ -68,7 +68,7 @@ class deque_iterator{
     // 对比两个iterator
     bool operator>(const self x)const;
 
-    protected:
+    public:
     pointer first;
     pointer last;
     pointer cur;
@@ -77,10 +77,8 @@ class deque_iterator{
 
 template <class T, size_t buf_size=0>
 class deque{
-
     public:
-    friend class deque_iterator<T,buf_size>;
-
+    typedef int different_type;
     typedef T value_type;
     typedef value_type* pointer;
     typedef value_type& reference;
@@ -91,10 +89,13 @@ class deque{
     typedef pointer* map_pointer;
 
     // 定义iterator的类型
-    typedef deque_iterator<T> iterator;// iterator还需要重新定义
+    typedef deque_iterator<T,buf_size> iterator;// iterator还需要重新定义
 
     // 构造函数
     deque(size_type n,value_type val);
+
+    // 析构函数
+    ~deque();
 
     // 返回指向首个元素的iterator
     iterator begin(){return start;}
@@ -123,6 +124,11 @@ class deque{
         return *ite;
     }
 
+    void push_back(value_type val);
+    void push_front(value_type val);
+    void pop_back(value_type val);
+    void pop_front(value_type val);
+
     private:
     typedef aloc::allocator<T> allocator;
 
@@ -133,15 +139,21 @@ class deque{
     size_type initial_map_size();
 
     // 元素的构造和析构
-    void construct(pointer p,value_type val);
+    void construct(pointer p,const value_type val);
 
     void destroy(pointer p);
 
-    map_pointer create_mapnode();
+    void create_mapnode(size_type n);
+
+    void uninitialized_fill(pointer _begin,pointer _end,const value_type val);
+    void fill_initialized(size_type n,const value_type val);
 
     static size_type buffer_size(){
         return deque_bufsize(buf_size,sizeof(T));
     }
+
+    void push_back_aux(value_type val);
+    void push_front_aux(value_type val);
 
     protected:
     map_pointer map;// buffer-center
@@ -149,5 +161,6 @@ class deque{
     iterator start;
     iterator finish;
 };
+
 
 #endif

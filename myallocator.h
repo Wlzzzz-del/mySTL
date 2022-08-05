@@ -36,7 +36,7 @@ class allocator{
     return tmp;
    };// 配置存储n个T对象的空间
 
-   static void deallocate(pointer _p, sizetype n){
+   static void deallocate(pointer _p, sizetype n=0){
     free(_p);
    };
    sizetype max_size()const{
