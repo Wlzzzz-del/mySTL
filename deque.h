@@ -2,6 +2,7 @@
 #define _DEQUE_H_
 #include <iostream>
 #include "myallocator.h"
+
 inline size_t deque_bufsize(size_t n, size_t sz){
     return n!=0? n:(sz<512?size_t(512/sz):size_t(1));
 }
@@ -54,7 +55,7 @@ class deque_iterator{
     self& operator-=(const int step);
 
     // iterator移动(调用+=来实现)
-    self operator+(const int step) const;
+    self operator+(const int step)const;
 
     // iterator移动(调用+=来实现)
     self operator-(const int step) const;
@@ -126,8 +127,11 @@ class deque{
 
     void push_back(value_type val);
     void push_front(value_type val);
-    void pop_back(value_type val);
-    void pop_front(value_type val);
+    void pop_back();
+    void pop_front();
+    void copy_buffer(map_pointer _begin, map_pointer _end, map_pointer _new_begin);
+    iterator find(iterator _begin, iterator _end, value_type _val);
+    void clear();
 
     private:
     typedef aloc::allocator<T> allocator;
@@ -152,6 +156,9 @@ class deque{
         return deque_bufsize(buf_size,sizeof(T));
     }
 
+    void reallocate_map(size_type node_to_add, bool add_at_front);
+    void reverse_map_at_back(size_type node_to_add=1);
+    void reverse_map_at_front(size_type node_to_add=1);
     void push_back_aux(value_type val);
     void push_front_aux(value_type val);
 

@@ -1,6 +1,8 @@
 #include <iostream>
 #include "deque.h"
+#include <algorithm>
 #include "myallocator.h"
+
 
 /***************deque-iterator实现部分******/
 // 为迭代器指向新的buffer
@@ -8,7 +10,7 @@ template <class T, size_t buf_size>
 void deque_iterator<T, buf_size>::set_new_node(map_pointer new_node){
     buf = new_node;
     first = *new_node;
-    cur = first;
+    //cur = first;
     // 与iterator end同理,指向最后一个元素的下一个位置
     last = first + buffer_size();
 }
@@ -16,7 +18,7 @@ void deque_iterator<T, buf_size>::set_new_node(map_pointer new_node){
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::reference
 deque_iterator<T, buf_size>::operator*(){
-    return *cur;
+    return (reference)(*this->cur);
 }
 
 template <class T, size_t buf_size>
@@ -27,6 +29,7 @@ deque_iterator<T,buf_size>::operator++(){
     ++cur;
     if(cur == last){
         set_new_node(buf+1);
+        cur = *buf;
     }
     return *this;
 }
@@ -34,7 +37,7 @@ deque_iterator<T,buf_size>::operator++(){
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::self 
 deque_iterator<T,buf_size>::operator++(int){
-    reference tmp = *this;
+    self tmp = *this;
     ++(*this);
     return tmp;
 }
@@ -65,7 +68,6 @@ deque_iterator<T, buf_size>::operator--(int){
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::self&
 deque_iterator<T, buf_size>::operator+=(const int step){
-    size_type rest = cur-first;
     different_type offset = step+(cur-first);
     if(offset>=0 && offset <= different_type(buffer_size())){
         cur = first + offset;
@@ -89,15 +91,15 @@ deque_iterator<T, buf_size>::operator-=(const int step){
 
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::self
-deque_iterator<T, buf_size>::operator+(const int step) const{
-    pointer tmp = *this;
+deque_iterator<T, buf_size>::operator+(const int step)const{
+    self tmp = *this;
     return tmp+=step;
 }
 
 template <class T, size_t buf_size>
 typename deque_iterator<T, buf_size>::self
 deque_iterator<T, buf_size>::operator-(const int step) const{
-    pointer tmp = *this;
+    self tmp = *this;
     return tmp-=step;
 }
 
@@ -127,23 +129,6 @@ deque_iterator<T, buf_size>::operator[](const int step) const{
 
 /***************deque实现部分**************/
 
-/*
-template <class T, size_t buf_size>
-deque<T,buf_size>::deque(){
-    map = buffer_allocator.allocate(map_size);// 分配mapcenter
-}
-*/
-/*
-template <class T, size_t buf_size>
-typename deque<T,buf_size>::map_pointer 
-deque<T,buf_size>::create_mapnode(){
-    map = buffer_allocator::allocate(map_size);
-    for(map_pointer cur = map; map<map+map_size; ++cur){
-        *map = allocator::allocate(buf_size);
-    }
-    return map;
-}
-*/
 
 // buffer-center的最低节点数
 template <class T, size_t buf_size>
@@ -152,6 +137,7 @@ deque<T,buf_size>::initial_map_size(){
     // 一个buffer-center至少包含八个节点
     return size_type(8);
 }
+
 template <class T, size_t buf_size>void
 deque<T, buf_size>::uninitialized_fill(pointer _begin,pointer _end,const value_type val){
     // [_begin, _end)
@@ -192,6 +178,7 @@ deque<T ,buf_size>::create_mapnode(size_type n){
     // 更新deque的start和finish
     start.set_new_node(nstart);
     finish.set_new_node(nfinish);
+    start.cur = *start.buf;
     finish.cur = finish.first+(n%buffer_size());
 }
 
@@ -202,12 +189,17 @@ deque<T,buf_size>::deque(size_type n, value_type val):map(0),map_size(0),start()
 }
 
 // deque析构函数
+// 由于分配策略改变的原因，析构函数也因此发生变动
+// 之前自己写的是一开始就为mapcenter里的所有指针分配内存
+// 因此释放时也是对mapcenter里面所有指针释放
+// 但stl实际上是需要扩展的时候才分配内存。
+// 因此释放内存时只需要释放start.buf至finish.buf即可
 template <class T, size_t buf_size>
 deque<T,buf_size>::~deque(){
-    map_pointer tmp = map;
-    for(;tmp<map+map_size;++tmp){
+    map_pointer tmp = start.buf;
+    for(;tmp<finish.buf+1;++tmp){
         // 先对每个对象析构
-        for(pointer bfcur = *tmp;bfcur<bfcur+buffer_size(); ++bfcur){
+        for(pointer bfcur = *tmp;bfcur<*tmp+buffer_size(); ++bfcur){
             destroy(bfcur);
         }
         // 再释放对象数组的内存
@@ -237,12 +229,53 @@ void deque<T, buf_size>::destroy(pointer p){
 }
 
 template <class T, size_t buf_size>
+void deque<T, buf_size>::reallocate_map(size_type node_to_add, bool add_at_front){
+    size_type old_num_nodes = finish.buf - start.buf +1;
+    size_type new_num_nodes = old_num_nodes + node_to_add;
+    /*
+    if(map_size > 2*new_num_nodes){
+        // 左右copy节点来腾出空间
+    }
+    else{
+        */
+        // 重新分配空间
+    size_type new_map_size = map_size + max(map_size,node_to_add)+2;
+    map_pointer new_map = buffer_allocator::allocate(new_map_size);
+    map_pointer new_nstart = new_map+(new_map_size-new_num_nodes)/2+
+    (add_at_front?node_to_add:0);
+    copy(start.buf, finish.buf+1, new_nstart);// copy复制buffercenter的内容
+    buffer_allocator::deallocate(map);
+    map = new_map;
+    map_size = new_map_size;
+    //}
+    start.set_new_node(new_nstart);
+    finish.set_new_node(new_nstart+old_num_nodes-1);
+}
+
+template <class T, size_t buf_size>
 void deque<T, buf_size>::push_back_aux(value_type val){
     // 如果buffer空间不够还需补写一个函数
-    // reverse_map_at_back()
+    reverse_map_at_back();
     construct(finish.cur, val);
     *(finish.buf+1)=allocator::allocate(buffer_size());
     finish.set_new_node(finish.buf+1);
+    finish.cur = finish.first;
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::reverse_map_at_back(size_type node_to_add){
+    // 如果尾端空间不足
+    if(node_to_add+1 > map_size-(finish.buf-map)){
+        reallocate_map(node_to_add,false);
+    }
+}
+
+template <class T,size_t buf_size>
+void deque<T, buf_size>::reverse_map_at_front(size_type node_to_add){
+    // 如果前端空间不足
+    if(node_to_add+1 > start.buf-map){
+        reallocate_map(node_to_add,true);
+    }
 }
 
 template <class T, size_t buf_size>
@@ -260,9 +293,23 @@ void deque<T, buf_size>::push_back(value_type val){
    }
 }
 
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::copy_buffer(map_pointer _begin, map_pointer _end, map_pointer _new_begin){
+    size_type gap = _end - _begin;
+    
+    // 如果新的copy空间跨越了另一个buffer，则需要申请另一个buffer的空间
+    // 而且没有更新start和finish
+
+    for(size_type i=0;i<gap;++i){
+        *(_new_begin+i) = *(_begin+i);
+    }
+}
+
+
 template <class T, size_t buf_size>
 void deque<T, buf_size>::push_front_aux(value_type val){
-    // reverse_map_at_back
+    reverse_map_at_front();
     *(start.buf-1) = allocator::allocate(buffer_size());
     start.set_new_node(start.buf-1);
     start.cur = start.last-1;
@@ -279,12 +326,62 @@ void deque<T, buf_size>::push_front(value_type val){
 }
 
 template <class T, size_t buf_size>
-void deque<T, buf_size>::pop_back(value_type val){
-
+void deque<T, buf_size>::pop_back(){
+    // 如果不是buffer中的最后一块，调整finish即可
+    // 如果是buffer中的最后一块，指向上一块buffer的last,并且释放该buffer    
+    if(finish.cur == finish.first){
+        destroy(finish.cur);
+        allocator::deallocate(finish.first);
+        finish.set_new_node(finish.buf-1);
+        finish.cur = finish.first+buffer_size()-1;
+    }
+    else{
+        destroy(finish.cur);
+        --finish;
+    }
 }
 
 template <class T, size_t buf_size>
-void deque<T, buf_size>::pop_front(value_type val){
-
+void deque<T, buf_size>::pop_front(){
+    if(start.cur == start.last+1){
+        destroy(start.cur);
+        allocator::deallocate(start.first);
+        start.set_new_node(start.buf+1);
+        start.cur = start.first;
+    }
+    else{
+        destroy(start.cur);
+        ++start;
+    }
 }
 
+template <class T, size_t buf_size>
+typename deque<T,buf_size>::iterator 
+deque<T,buf_size>::find(iterator _begin, iterator _end, value_type _val){
+    iterator ite = _begin;
+    while(ite!=_end){
+        if(*ite == _val)return ite;
+        ++ite;
+    }
+    return this->end();
+}
+
+template <class T, size_t buf_size>
+void deque<T, buf_size>::clear(){
+    // 清空完只保留一个缓冲区
+    map_pointer tmp = start.buf;
+    for(;tmp<finish.buf;++tmp){
+        // 先对每个对象析构
+        for(pointer bfcur = *tmp;bfcur<*tmp+buffer_size(); ++bfcur){
+            destroy(bfcur);
+        }
+        // 再释放对象数组的内存
+        allocator::deallocate(*tmp);
+    }
+    for(pointer t=finish.first;t<finish.cur;++t){
+        destroy(t);
+    }
+    start.set_new_node(finish.buf);
+    start.cur = finish.first;
+    finish.cur = finish.first;
+}
