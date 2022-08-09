@@ -262,14 +262,16 @@ void deque<T, buf_size>::push_back(value_type val){
 
 template <class T, size_t buf_size>
 void deque<T, buf_size>::push_front_aux(value_type val){
-    construct(start.first,val);
+    // reverse_map_at_back
     *(start.buf-1) = allocator::allocate(buffer_size());
     start.set_new_node(start.buf-1);
+    start.cur = start.last-1;
+    construct(start.cur,val);
 }
 
 template <class T, size_t buf_size>
 void deque<T, buf_size>::push_front(value_type val){
-    if(start.cur-1 == start.first)push_front_aux(val);
+    if(start.cur == start.first)push_front_aux(val);
     else{
         --start.cur;
         construct(start.cur,val);
